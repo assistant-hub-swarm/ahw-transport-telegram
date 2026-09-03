@@ -84,8 +84,7 @@ jobs:
           # public package).
           registry-url: https://npm.pkg.github.com
           scope: "@assistant-hub-swarm"
-          # No `cache: npm` yet: it hashes a lockfile, and hard-fails when
-          # there is none. Add it back in the same commit as the lockfile.
+          cache: npm
       # See the Dockerfile on npm install vs npm ci.
       - run: npm install --no-audit --no-fund
         env:
