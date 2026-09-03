@@ -6,16 +6,16 @@ import {
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 
-import type { BotManager } from "./bot-manager";
-import type { AssistantConnection } from "./connections";
+import type { BotManager } from "../telegram/manager";
+import type { AssistantConnection } from "../telegram/connections";
 import {
   reactToMessage,
   TELEGRAM_REACTION_EMOJI,
   toTelegramReactionEmoji,
-} from "./reactions";
-import { sendChatMessage } from "./send";
-import { telegramId } from "./telegram";
-import type { UpdatePublisher } from "./updates";
+} from "../telegram/reactions";
+import { sendChatMessage } from "../outbound/send";
+import { telegramId } from "../telegram/ids";
+import type { UpdatePublisher } from "../core/updates";
 
 /**
  * This transport's own MCP server (the manual's "Step 6 — The MCP server").

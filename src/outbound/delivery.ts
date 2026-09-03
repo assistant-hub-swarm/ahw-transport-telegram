@@ -10,11 +10,11 @@ import {
   type BusSubscription,
 } from "@assistant-hub-swarm/transport-sdk";
 
-import type { AssistantConnection } from "./connections";
-import type { TgOutbound } from "./outbound";
+import type { AssistantConnection } from "../telegram/connections";
+import type { TgOutbound } from "../telegram/sender";
 import { sendChatMessage } from "./send";
-import { telegramId } from "./telegram";
-import type { UpdatePublisher } from "./updates";
+import { telegramId } from "../telegram/ids";
+import type { UpdatePublisher } from "../core/updates";
 
 /**
  * The outbound half of the transport contract: consume the core's

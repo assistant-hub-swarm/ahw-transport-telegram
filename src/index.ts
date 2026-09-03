@@ -9,11 +9,11 @@ import {
   type BusSubscription,
 } from "@assistant-hub-swarm/transport-sdk";
 
-import { createApi } from "./api";
-import { BotManager } from "./bot-manager";
-import { startDeliveryConsumer } from "./delivery";
-import { fetchDesiredState, registerUntilAccepted } from "./desired-state";
-import { openUpdatePublisher } from "./updates";
+import { createApi } from "./http/api";
+import { BotManager } from "./telegram/manager";
+import { startDeliveryConsumer } from "./outbound/delivery";
+import { fetchDesiredState, registerUntilAccepted } from "./core/desired-state";
+import { openUpdatePublisher } from "./core/updates";
 
 /**
  * The tg transport's entry (redesign Phase 7): a fully stateless service.

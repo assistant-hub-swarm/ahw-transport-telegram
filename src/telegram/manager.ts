@@ -10,11 +10,11 @@ import type { MessageReactionUpdated } from "@grammyjs/types";
 import { Bot, HttpError, type Context } from "grammy";
 
 import type { AssistantConnection } from "./connections";
-import { forwardCallbackPress } from "./core-client";
-import { presenceEvent, processIncomingMessage } from "./inbound";
-import { createBotOutbound, type TgOutbound } from "./outbound";
-import { isGroupChat } from "./send";
-import { SeenCache, updateEnvelope, type UpdatePublisher } from "./updates";
+import { forwardCallbackPress } from "../core/client";
+import { presenceEvent, processIncomingMessage } from "../inbound/normalize";
+import { createBotOutbound, type TgOutbound } from "./sender";
+import { isGroupChat } from "../outbound/send";
+import { SeenCache, updateEnvelope, type UpdatePublisher } from "../core/updates";
 
 /**
  * Poller lifecycle for this app's telegram connections — supervision

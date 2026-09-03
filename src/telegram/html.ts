@@ -18,7 +18,7 @@
  * the swap.
  */
 
-import { MESSAGE_REF_PATTERN } from "./telegram";
+import { MESSAGE_REF_PATTERN } from "./ids";
 
 const PLACEHOLDER = "\u0000";
 

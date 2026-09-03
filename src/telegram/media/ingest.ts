@@ -1,10 +1,9 @@
-import { type TransportMedia } from "@assistant-hub-swarm/transport-sdk";
+import { normalizeImageForChat, type TransportMedia } from "@assistant-hub-swarm/transport-sdk";
 import type { Message } from "@grammyjs/types";
 
 import { detectMessageMedia } from "./detect";
+import { downloadTelegramFile } from "./files";
 import { VIDEO_FRAME_COUNT, extractVideoFrames } from "./frames";
-import { normalizeImageForChat } from "./normalize";
-import { downloadTelegramFile } from "./telegram-files";
 import type { DetectedMedia, ImagePayload } from "./types";
 
 /**

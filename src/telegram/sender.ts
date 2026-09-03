@@ -1,8 +1,8 @@
 import type { ReactionTypeEmoji } from "@grammyjs/types";
 import { GrammyError, InputFile, type Bot } from "grammy";
 
-import { messageLinkBase, telegramFileKind, type TelegramFileKind } from "./telegram";
-import { renderTelegramHtml } from "./telegram-html";
+import { messageLinkBase, telegramFileKind, type TelegramFileKind } from "./ids";
+import { renderTelegramHtml } from "./html";
 
 /**
  * Outbound Telegram operations on a running bot — the v1 grammy transport

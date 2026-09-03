@@ -8,10 +8,10 @@ import {
 import type { Message } from "@grammyjs/types";
 
 import { checkAddressed } from "./addressing";
-import type { AssistantConnection } from "./connections";
-import { detectMessageMedia } from "./media/detect";
-import { loadMessageMedia, type FileDownloader } from "./media/ingest";
-import { updateEnvelope, type SeenCache } from "./updates";
+import type { AssistantConnection } from "../telegram/connections";
+import { detectMessageMedia } from "../telegram/media/detect";
+import { loadMessageMedia, type FileDownloader } from "../telegram/media/ingest";
+import { updateEnvelope, type SeenCache } from "../core/updates";
 
 /**
  * Inbound processing, stateless since the Phase 7 de-storing: normalize one

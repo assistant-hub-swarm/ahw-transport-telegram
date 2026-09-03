@@ -68,21 +68,44 @@ that comes from the core at registration and on every change.
 
 ## What lives where
 
-| Duty | File |
-| --- | --- |
-| Boot order, shutdown | `src/index.ts` |
-| Registration, desired-state fetch, retry | `src/desired-state.ts` |
-| Poller lifecycle, reconcile, supervision, update handlers | `src/bot-manager.ts` |
-| Normalizing a message into `transport.message`, media, receivers | `src/inbound.ts`, `src/media/*` |
-| Structural addressing verdicts | `src/addressing.ts` |
-| Queue publisher, envelope, seen-cache | `src/updates.ts` |
-| The one send: split under Telegram's cap, each part sent and reported | `src/send.ts`, `src/split.ts` |
-| Bus consumer: reply delivery, typing loops, deliver trace | `src/delivery.ts` |
-| Platform sends (HTML render, link whitelist, files by mime, menus, reactions) | `src/outbound.ts`, `src/telegram-html.ts`, `src/telegram.ts` |
-| HTTP surface: health, `/internal/*`, `/mcp` | `src/api.ts` |
-| MCP tools and the turn binding | `src/mcp.ts`, `src/reactions.ts` |
-| Calls into the core (callback toast, mirror lookup) | `src/core-client.ts` |
-| Running-connection roster | `src/connections.ts` |
+The folders follow the **direction of travel**, which is how the contract
+itself reads: something arrives from Telegram and goes to the core, or arrives
+from the core and goes to Telegram. `telegram/` is the only part that knows the
+Bot API exists — replace it and you have a different transport.
+
+```
+src/
+  index.ts              boot order, shutdown
+
+  core/                 everything that speaks to the core
+    desired-state.ts    registration, the desired state, the retry
+    updates.ts          the update queue: publisher, envelope, seen-cache
+    client.ts           the synchronous calls back (callback toast, mirror lookup)
+
+  inbound/              Telegram -> core
+    normalize.ts        one platform update becomes one transport event
+    addressing.ts       the structural verdict, per receiving bot
+
+  outbound/             core -> Telegram
+    delivery.ts         the bus consumer: reply delivery, typing, deliver trace
+    send.ts             the one send: split, send each part, report each
+    split.ts            cutting under Telegram's message cap
+
+  telegram/             the only code that knows the Bot API
+    manager.ts          poller lifecycle, reconcile, supervision, handlers
+    connections.ts      the running-connection roster
+    sender.ts           the platform sends (text, voice, photos, files, menus)
+    reactions.ts        the reaction badge and its emoji set
+    html.ts             model Markdown -> Telegram HTML
+    ids.ts              chat/message id facts and citation links
+    media/              download, detect, sample frames, normalize
+
+  http/                 this service's own surface
+    api.ts              /health and /internal/*
+    mcp.ts              /mcp: the tools and the turn binding
+```
+
+Tests sit beside what they cover.
 
 ## The contract
 

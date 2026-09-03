@@ -1,9 +1,9 @@
 import { messageDedupeKey, type MessageDeliveredEvent } from "@assistant-hub-swarm/transport-sdk";
 
-import { runningRoster, type AssistantConnection } from "./connections";
-import type { TgOutbound } from "./outbound";
+import { runningRoster, type AssistantConnection } from "../telegram/connections";
+import type { TgOutbound } from "../telegram/sender";
 import { splitMessage } from "./split";
-import { updateEnvelope, type UpdatePublisher } from "./updates";
+import { updateEnvelope, type UpdatePublisher } from "../core/updates";
 
 /**
  * Sending text into a Telegram chat, as one assistant: the split under

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { renderTelegramHtml } from "./telegram-html";
+import { renderTelegramHtml } from "./html";
 
 describe("renderTelegramHtml", () => {
   it("escapes plain text with HTML-significant characters", () => {

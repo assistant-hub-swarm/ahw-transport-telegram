@@ -1,9 +1,9 @@
 import type { ReactionTypeEmoji } from "@grammyjs/types";
 
-import { lookupMirroredMessage } from "./core-client";
-import type { TgOutbound } from "./outbound";
-import { isGroupChat } from "./send";
-import { updateEnvelope, type UpdatePublisher } from "./updates";
+import { lookupMirroredMessage } from "../core/client";
+import type { TgOutbound } from "./sender";
+import { isGroupChat } from "../outbound/send";
+import { updateEnvelope, type UpdatePublisher } from "../core/updates";
 
 /**
  * Reacting to a message: Telegram's own emoji set, the normalization a model's

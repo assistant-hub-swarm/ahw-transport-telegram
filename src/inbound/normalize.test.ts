@@ -1,9 +1,9 @@
 import type { Message } from "@grammyjs/types";
 import { describe, expect, it } from "vitest";
 
-import type { AssistantConnection } from "./connections";
-import { processIncomingMessage, type InboundDeps } from "./inbound";
-import { SeenCache } from "./updates";
+import type { AssistantConnection } from "../telegram/connections";
+import { processIncomingMessage, type InboundDeps } from "./normalize";
+import { SeenCache } from "../core/updates";
 
 /**
  * The stateless inbound half (Phase 7): one Telegram update becomes one
