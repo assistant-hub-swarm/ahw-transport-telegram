@@ -4,7 +4,13 @@
 # database, no migrations, no volumes — it registers with a core at boot and
 # reconciles from the desired state the core answers with.
 #
-#   docker build -t ahw-transport-telegram .
+#   docker build --secret id=npm_token,env=NPM_TOKEN -t ahw-transport-telegram .
+#
+# The SDK comes from GitHub Packages, whose npm registry wants a token on every
+# request: a public package there is readable by any account, but not
+# anonymously. So the build takes one as a BuildKit secret — never a build arg,
+# never a layer. Any token with `read:packages` will do; in CI it is the
+# workflow's own GITHUB_TOKEN.
 #
 # It runs from TypeScript source via tsx: the entrypoint uses top-level await,
 # and a compile step would buy nothing here but a second module resolution to
@@ -18,13 +24,18 @@ WORKDIR /app
 # omit Linux-only optional native deps (sharp's musl build, which the SDK pulls
 # in for image normalization), which `npm ci`'s strict sync check rejects.
 #
-# The SDK lives in the org's registry on GitHub Packages. The package is
-# public, so no token is needed to pull it — only this scope line.
+# The committed `.npmrc` carries the scope; the token is appended from the
+# secret and the file is deleted inside the same layer, so nothing about it is
+# recoverable from the image.
 FROM base AS deps
-COPY package.json package-lock.json* ./
-RUN printf '@assistant-hub-swarm:registry=https://npm.pkg.github.com\n' > .npmrc \
-    && npm install --no-audit --no-fund \
-    && rm .npmrc
+COPY package.json package-lock.json* .npmrc ./
+RUN --mount=type=secret,id=npm_token \
+    set -eu; \
+    if [ -s /run/secrets/npm_token ]; then \
+      printf '//npm.pkg.github.com/:_authToken=%s\n' "$(cat /run/secrets/npm_token)" >> .npmrc; \
+    fi; \
+    npm install --no-audit --no-fund; \
+    rm -f .npmrc
 
 # --- runner ---
 FROM base AS runner

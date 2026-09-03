@@ -9,8 +9,9 @@ name: Release
 # re-runs and for proving the pipeline on a fresh repo; every step is
 # idempotent.
 #
-# Auth is the job's own GITHUB_TOKEN — no registry secrets to keep. The SDK
-# this builds against is public, so pulling it needs no token either.
+# Auth everywhere is the job's own GITHUB_TOKEN — no registry secrets to keep. It
+# authenticates three things: the SDK install (GitHub Packages wants a token
+# even for a public package), the image push, and the tag.
 on:
   push:
     branches: [main]
@@ -71,10 +72,13 @@ jobs:
       - uses: actions/setup-node@v5
         with:
           node-version: 24
-          # The SDK's scope lives on GitHub Packages.
+          # The SDK's scope lives on GitHub Packages; NODE_AUTH_TOKEN below
+          # authenticates the install (that registry wants a token even for a
+          # public package).
           registry-url: https://npm.pkg.github.com
           scope: "@assistant-hub-swarm"
-          cache: npm
+          # No `cache: npm` yet: it hashes a lockfile, and hard-fails when
+          # there is none. Add it back in the same commit as the lockfile.
       # See the Dockerfile on npm install vs npm ci.
       - run: npm install --no-audit --no-fund
         env:
@@ -117,6 +121,10 @@ jobs:
           tags: |
             ${{ env.IMAGE }}:${{ env.VERSION }}
             ${{ env.IMAGE }}:latest
+          # The Dockerfile installs the SDK from GitHub Packages; the token
+          # rides in as a BuildKit secret so it never lands in a layer.
+          secrets: |
+            npm_token=${{ secrets.GITHUB_TOKEN }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 

@@ -16,9 +16,18 @@ It is also the **worked example** for
 Against a core you are already running (its Redis and its internal token):
 
 ```bash
-npm install
+npm install              # needs a GitHub Packages token — see below
 cp .env.example .env     # REDIS_URL, INTERNAL_API_TOKEN, CORE_API_URL, SELF_URL
 npm run dev
+```
+
+`.npmrc` points the `@assistant-hub-swarm` scope at GitHub Packages, which
+wants a token on every request: a public package there is readable by any
+account, but not anonymously. Put one with `read:packages` in your user-level
+`~/.npmrc`, so it never reaches this repository:
+
+```
+//npm.pkg.github.com/:_authToken=<token>
 ```
 
 Or as the container, which is how an operator runs it — one service next to the
@@ -81,8 +90,8 @@ Everything that crosses the boundary comes from
 [`@assistant-hub-swarm/transport-sdk`][sdk] — the zod schemas, the Redis
 helpers, the internal-token guard, `serveMcp`, the trace client, image
 normalization. The package lives in the org's registry on GitHub Packages,
-which is what the `.npmrc` here points at; it is public, so pulling it needs no
-token.
+which is what the `.npmrc` here points at — see [Run it](#run-it) for the token
+that registry asks for.
 
 Two versions matter, and they are different numbers:
 
