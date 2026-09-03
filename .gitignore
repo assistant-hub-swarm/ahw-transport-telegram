@@ -2,6 +2,13 @@ node_modules/
 dist/
 coverage/
 
+# No lockfile is committed yet: the SDK is not published, so the only way to
+# install here today is a local tarball, and a lockfile recording that path
+# would be wrong for everyone else. Delete these two lines and commit the
+# lockfile from a real `npm install` once @assistant-hub-swarm/transport-sdk
+# is on the registry.
+package-lock.json
+
 # env files (can opt-in for committing if needed)
 .env*
 !.env.example
