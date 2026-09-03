@@ -1,0 +1,38 @@
+{
+  "name": "ahw-transport-telegram",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "The Telegram transport for assistant-hub: stateless pollers that register with a core, forward every update as transport events, perform the sends, and host Telegram's actions as MCP tools.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/assistant-hub-swarm/ahw-transport-telegram.git"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@assistant-hub-swarm/transport-sdk": "^1.0.0",
+    "@grammyjs/runner": "^2.0.3",
+    "@grammyjs/types": "^5.0.0",
+    "@hono/node-server": "^1.14.0",
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "dotenv": "^17.2.0",
+    "grammy": "^1.46.0",
+    "hono": "^4.7.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "tsx": "^4.19.2",
+    "typescript": "^5",
+    "vitest": "^4.1.10"
+  }
+}
