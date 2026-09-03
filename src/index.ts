@@ -1,117 +1,35 @@
 import "dotenv/config";
 
-import { serve } from "@hono/node-server";
-import {
-  BUS_EVENTS_CHANNEL,
-  openSubscriber,
-  optionalEnv,
-  requireEnv,
-  type BusSubscription,
-} from "@assistant-hub-swarm/transport-sdk";
+import { startTransportService } from "@assistant-hub-swarm/transport-sdk";
 
-import { createApi } from "./http/api";
-import { BotManager } from "./telegram/manager";
-import { startDeliveryConsumer } from "./outbound/delivery";
-import { fetchDesiredState, registerUntilAccepted } from "./core/desired-state";
-import { openUpdatePublisher } from "./core/updates";
+import { descriptor } from "./descriptor";
+import { addressing } from "./inbound/addressing";
+import { createNormalizer } from "./inbound/normalize";
+import { telegramAdapter } from "./telegram/adapter";
+import { registerReactionTool } from "./telegram/reaction-tool";
 
 /**
- * The tg transport's entry (redesign Phase 7): a fully stateless service.
- * It registers with the core at boot, reconciles its pollers from the
- * desired state the core answers with, forwards everything it sees as
- * transport-update events, and refetches on every `transport.config.changed`
- * (and on `assistant.deleted`, whose cascade removes connections without a
- * per-row event). No database, no files — the core remembers.
+ * The Telegram transport, whole.
+ *
+ * Everything that is true of any transport — registering with the core,
+ * reconciling pollers from the desired state, deduping shared chats,
+ * assembling and publishing events, splitting and performing sends, serving
+ * `/health` and the internal API, hosting the delivery tools, shutting down
+ * in order — is the SDK's runtime. What is left below is Telegram: the
+ * descriptor, the poller adapter, the normalizer and the addressing rule.
  */
 
-const redisUrl = requireEnv("REDIS_URL");
-const internalToken = requireEnv("INTERNAL_API_TOKEN");
-const port = Number(optionalEnv("PORT") ?? "3210");
-
-const updates = openUpdatePublisher(redisUrl);
-const manager = new BotManager({ redisUrl, updates });
-
-// The API serves /health from the first moment; pollers join once the core
-// has answered the registration.
-const api = createApi({
-  manager,
-  internalToken,
-  updates,
-  running: () => manager.runningConnections(),
-});
-const server = serve({ fetch: api.fetch, port }, (info) => {
-  console.log(`tg API listening on :${info.port}`);
-});
-
-const desired = await registerUntilAccepted(port);
-console.log(
-  `registered with the core — ${desired.connections.length} connection(s) desired` +
-    (desired.transport.enabled ? "" : " (transport disabled)"),
-);
-const statuses = await manager.applyDesiredState(desired);
-if (statuses.length === 0) {
-  console.log("No enabled telegram connections — pollers idle until one is added.");
-} else {
-  for (const status of statuses) {
-    console.log(
-      `connection ${status.connectionId} (assistant ${status.assistantId}): ${status.state}` +
-        (status.username ? ` as @${status.username}` : "") +
-        (status.error ? ` — ${status.error}` : ""),
-    );
-  }
-}
-
-/** Refetch + reconcile, serialized — bursts of changes collapse harmlessly. */
-let reconciling: Promise<void> = Promise.resolve();
-function scheduleReconcile(reason: string): void {
-  reconciling = reconciling.then(async () => {
-    try {
-      await manager.applyDesiredState(await fetchDesiredState());
-      console.log(`desired state reconciled (${reason})`);
-    } catch (err) {
-      console.error(
-        `desired-state reconcile failed (${reason}):`,
-        err instanceof Error ? err.message : String(err),
-      );
-    }
-  });
-}
-
-const configWatch: BusSubscription = await openSubscriber(
-  redisUrl,
-  BUS_EVENTS_CHANNEL,
-  (payload) => {
-    const type =
-      payload && typeof payload === "object" ? (payload as { type?: unknown }).type : undefined;
-    if (
-      (type === "transport.config.changed" &&
-        (payload as { transport?: string }).transport === "tg") ||
-      type === "assistant.deleted"
-    ) {
-      scheduleReconcile(String(type));
-    }
+await startTransportService({
+  descriptor,
+  adapter: telegramAdapter,
+  normalize: createNormalizer(),
+  addressing,
+  defaultPort: 3210,
+  // The delivery tools are the contract's, but they speak to a model about a
+  // specific platform, so the words are this transport's to choose.
+  tools: {
+    platform: "Telegram",
+    // Reacting is Telegram's own tool: the 73 emoji it takes are its own.
+    register: registerReactionTool,
   },
-  (error) => console.error("bus payload parse failed:", error),
-);
-
-const delivery = await startDeliveryConsumer({
-  redisUrl,
-  senderFor: (assistantId) => manager.senderFor(assistantId),
-  running: () => manager.runningConnections(),
-  updates,
 });
-
-let shuttingDown = false;
-async function shutdown(signal: string): Promise<void> {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  console.log(`${signal} — shutting down`);
-  server.close();
-  await configWatch.close().catch(() => undefined);
-  await delivery.close().catch(() => undefined);
-  await manager.close().catch(() => undefined);
-  await updates.close().catch(() => undefined);
-  process.exit(0);
-}
-process.on("SIGINT", () => void shutdown("SIGINT"));
-process.on("SIGTERM", () => void shutdown("SIGTERM"));

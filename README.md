@@ -9,7 +9,9 @@ the core at boot (registration answers with the desired state) and from the bus
 (config changes). Its whole job is translation.
 
 It is also the **worked example** for
-[Adding a transport][manual] — every duty in that manual has a file here.
+[Adding a transport][manual]: the four things a transport implements are the
+four things in this repository, and everything else that manual describes is
+the SDK doing it.
 
 ## Run it
 
@@ -68,41 +70,29 @@ that comes from the core at registration and on every change.
 
 ## What lives where
 
-The folders follow the **direction of travel**, which is how the contract
-itself reads: something arrives from Telegram and goes to the core, or arrives
-from the core and goes to Telegram. `telegram/` is the only part that knows the
-Bot API exists — replace it and you have a different transport.
+Almost nothing. Registration, reconcile, deduping, event assembly, the sends,
+the HTTP surface, the delivery tools and shutdown are all the SDK's transport
+runtime — the same for every platform, so they live in one place. What is here
+is Telegram, and the boundary is the folder: `telegram/` is the only code that
+knows the Bot API exists, and replacing it is what gets you a different
+transport.
 
 ```
 src/
-  index.ts              boot order, shutdown
-
-  core/                 everything that speaks to the core
-    desired-state.ts    registration, the desired state, the retry
-    updates.ts          the update queue: publisher, envelope, seen-cache
-    client.ts           the synchronous calls back (callback toast, mirror lookup)
-
-  inbound/              Telegram -> core
-    normalize.ts        one platform update becomes one transport event
-    addressing.ts       the structural verdict, per receiving bot
-
-  outbound/             core -> Telegram
-    delivery.ts         the bus consumer: reply delivery, typing, deliver trace
-    send.ts             the one send: split, send each part, report each
-    split.ts            cutting under Telegram's message cap
+  index.ts              the four pieces, handed to startTransportService
+  descriptor.ts         who this transport is: id, name, config fields, limits
 
   telegram/             the only code that knows the Bot API
-    manager.ts          poller lifecycle, reconcile, supervision, handlers
-    connections.ts      the running-connection roster
-    sender.ts           the platform sends (text, voice, photos, files, menus)
-    reactions.ts        the reaction badge and its emoji set
+    adapter.ts          connection lifecycle and what each update means
+    connection.ts       the platform actions (text, voice, photos, files, menus, reactions)
+    reaction-tool.ts    the reaction MCP tool and the 73 emoji Telegram takes
     html.ts             model Markdown -> Telegram HTML
     ids.ts              chat/message id facts and citation links
     media/              download, detect, sample frames, normalize
 
-  http/                 this service's own surface
-    api.ts              /health and /internal/*
-    mcp.ts              /mcp: the tools and the turn binding
+  inbound/              reading a Telegram update into the contract
+    normalize.ts        one platform update becomes one InboundMessage
+    addressing.ts       the structural verdict, per receiving bot
 ```
 
 Tests sit beside what they cover.
@@ -110,9 +100,10 @@ Tests sit beside what they cover.
 ## The contract
 
 Everything that crosses the boundary comes from
-[`@assistant-hub-swarm/transport-sdk`][sdk] — the zod schemas, the Redis
-helpers, the internal-token guard, `serveMcp`, the trace client, image
-normalization. The package lives in the org's registry on GitHub Packages,
+[`@assistant-hub-swarm/transport-sdk`][sdk] — the runtime this service is a
+few hundred lines of platform code on top of, and the zod schemas, Redis
+helpers, token guard, MCP server, trace client and image normalization it is
+built from. The package lives in the org's registry on GitHub Packages,
 which is what the `.npmrc` here points at — see [Run it](#run-it) for the token
 that registry asks for.
 

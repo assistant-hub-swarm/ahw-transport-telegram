@@ -1,110 +1,67 @@
 import type { Message } from "@grammyjs/types";
 import { describe, expect, it } from "vitest";
 
-import type { AssistantConnection } from "../telegram/connections";
-import { processIncomingMessage, type InboundDeps } from "./normalize";
-import { SeenCache } from "../core/updates";
+import type { TgUpdate } from "../telegram/adapter";
+import { createNormalizer } from "./normalize";
 
 /**
- * The stateless inbound half (Phase 7): one Telegram update becomes one
- * transport-update event — per-connection structural verdicts computed here,
- * media riding as payload, group duplicates suppressed in-process. What the
- * core DOES with the event is its ingest's business (covered there).
+ * What this transport reads OFF a Telegram update. What the result becomes —
+ * the dedupe key, the receivers, the envelope — is the runtime's, and is
+ * tested in the SDK; here the only question is whether Telegram's wire shape
+ * was understood.
  */
 
-const anna: AssistantConnection = {
-  assistantId: "anna",
-  botId: 1001,
-  identity: { botUsername: "anna_bot", botDisplayName: "Anna" },
-};
-const igor: AssistantConnection = {
-  assistantId: "igor",
-  botId: 1002,
-  identity: { botUsername: "igor_bot", botDisplayName: "Igor" },
-};
+const normalize = createNormalizer({ download: async () => null });
 
-function message(overrides: Partial<Message> = {}): Message {
+function update(overrides: Partial<Message> = {}): TgUpdate {
   return {
-    message_id: 42,
-    date: 1_756_400_000,
-    chat: { id: -100200, type: "supergroup", title: "The group" },
-    from: { id: 7, is_bot: false, first_name: "Sam", username: "sam" },
-    text: "hello @igor_bot",
-    ...overrides,
-  } as Message;
-}
-
-function deps(overrides: Partial<InboundDeps> = {}): InboundDeps {
-  return {
-    assistantId: "anna",
-    botId: 1001,
+    message: {
+      message_id: 42,
+      date: 1_756_400_000,
+      chat: { id: -100200, type: "supergroup", title: "The group" },
+      from: { id: 7, is_bot: false, first_name: "Sam", username: "Sam" },
+      text: "hello",
+      ...overrides,
+    } as TgUpdate["message"],
     botToken: "token",
-    running: () => [anna, igor],
-    seen: new SeenCache(),
-    download: async () => null,
-    ...overrides,
+    botId: 1001,
   };
 }
 
-describe("processIncomingMessage", () => {
-  it("forwards one event with a structural verdict per running connection", async () => {
-    const result = await processIncomingMessage(message(), deps());
-    expect(result.status).toBe("forwarded");
-    if (result.status !== "forwarded") return;
-    const event = result.event;
-    expect(event).toMatchObject({
-      type: "transport.message",
-      source: "tg",
-      receivedBy: "anna",
-      chat: { id: "-100200", kind: "group", title: "The group" },
-      sender: { userId: "7", username: "sam" },
-      dedupeKey: "-100200:42",
+describe("createNormalizer", () => {
+  it("reads a group message into the contract's vocabulary", async () => {
+    const message = await normalize(update());
+    expect(message).toMatchObject({
+      chatId: "-100200",
+      direct: false,
+      chatTitle: "The group",
+      chatType: "supergroup",
+      sourceMessageId: "42",
+      content: "hello",
+      // Usernames are lower-cased; the platform treats them case-insensitively.
+      sender: { userId: "7", username: "sam", firstName: "Sam", lastName: null },
+      media: null,
     });
-    // The @mention names igor's bot: his verdict is addressed, anna's is the
-    // analyzer's to settle.
-    const verdicts = new Map(event.receivers.map((r) => [r.assistantId, r.addressing]));
-    expect(verdicts.get("igor")).toMatchObject({ addressed: true, source: "mention" });
-    expect(verdicts.get("anna")).toMatchObject({ addressed: false, needsAnalyzer: true });
+    expect(message?.sentAt).toBe(new Date(1_756_400_000_000).toISOString());
   });
 
-  it("suppresses the second receipt of a group message (presence-only)", async () => {
-    const seen = new SeenCache();
-    const first = await processIncomingMessage(message(), deps({ seen }));
-    expect(first.status).toBe("forwarded");
-    const second = await processIncomingMessage(
-      message(),
-      deps({ seen, assistantId: "igor", botId: 1002 }),
+  it("marks a private chat direct and drops the group-only fields", async () => {
+    const message = await normalize(
+      update({ chat: { id: 7, type: "private", first_name: "Sam" } as Message["chat"] }),
     );
-    expect(second.status).toBe("duplicate");
+    expect(message).toMatchObject({ direct: true, chatType: null, chatTitle: null });
   });
 
-  it("keeps DM streams per bot: same message id, different dedupe keys", async () => {
-    const dm = message({
-      chat: { id: 7, type: "private", first_name: "Sam" } as Message["chat"],
-      text: "hi",
-    });
-    const seen = new SeenCache();
-    const toAnna = await processIncomingMessage(dm, deps({ seen }));
-    const toIgor = await processIncomingMessage(
-      dm,
-      deps({ seen, assistantId: "igor", botId: 1002 }),
+  it("carries a caption as the content, and a forum thread as the thread id", async () => {
+    const message = await normalize(
+      update({ text: undefined, caption: "look at this", message_thread_id: 9 }),
     );
-    expect(toAnna.status).toBe("forwarded");
-    expect(toIgor.status).toBe("forwarded");
-    if (toAnna.status !== "forwarded" || toIgor.status !== "forwarded") return;
-    expect(toAnna.event.dedupeKey).toBe("7:anna:42");
-    expect(toIgor.event.dedupeKey).toBe("7:igor:42");
-    // A DM lists the receiving connection alone.
-    expect(toAnna.event.receivers.map((r) => r.assistantId)).toEqual(["anna"]);
-    expect(toAnna.event.receivers[0].addressing).toMatchObject({
-      addressed: true,
-      source: "private",
-    });
+    expect(message).toMatchObject({ content: "look at this", threadId: "9" });
   });
 
-  it("recognizes a reply to another running bot as that assistant's", async () => {
-    const result = await processIncomingMessage(
-      message({
+  it("names a quoted bot author by platform id, not as a person", async () => {
+    const message = await normalize(
+      update({
         reply_to_message: {
           message_id: 30,
           date: 1_756_399_000,
@@ -113,25 +70,41 @@ describe("processIncomingMessage", () => {
           text: "igor said this",
         } as Message["reply_to_message"],
       }),
-      deps(),
     );
-    expect(result.status).toBe("forwarded");
-    if (result.status !== "forwarded") return;
-    expect(result.event.message.replyTo).toMatchObject({
+    // The runtime turns the platform id into an assistant id; a bot is never
+    // reported as a person.
+    expect(message?.replyTo).toMatchObject({
       sourceMessageId: "30",
-      authorAssistantId: "igor",
+      text: "igor said this",
       author: null,
+      authorPlatformId: "1002",
     });
   });
 
-  it("drops bot-authored and contentless updates", async () => {
-    const fromBot = await processIncomingMessage(
-      message({ from: { id: 1002, is_bot: true, first_name: "Igor" } }),
-      deps(),
+  it("reports a human quote author as a person", async () => {
+    const message = await normalize(
+      update({
+        reply_to_message: {
+          message_id: 31,
+          date: 1_756_399_000,
+          chat: { id: -100200, type: "supergroup", title: "The group" },
+          from: { id: 8, is_bot: false, first_name: "Lee", username: "LEE" },
+          text: "earlier",
+        } as Message["reply_to_message"],
+      }),
     );
-    expect(fromBot).toMatchObject({ status: "skipped", reason: "bot_or_anonymous_sender" });
+    expect(message?.replyTo).toMatchObject({
+      author: { userId: "8", username: "lee", firstName: "Lee" },
+      authorPlatformId: null,
+    });
+  });
 
-    const empty = await processIncomingMessage(message({ text: undefined }), deps());
-    expect(empty).toMatchObject({ status: "skipped", reason: "no_content" });
+  it("skips an update with neither text nor media", async () => {
+    expect(await normalize(update({ text: undefined }))).toBeNull();
+  });
+
+  it("skips an update with no sender at all", async () => {
+    // An anonymous channel post has nobody to attribute it to.
+    expect(await normalize(update({ from: undefined }))).toBeNull();
   });
 });

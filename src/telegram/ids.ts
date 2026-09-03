@@ -28,16 +28,6 @@ export function telegramId(value: string | number | null | undefined): number | 
  */
 export const MESSAGE_REF_PATTERN = /(^|[\s(\[«"'—-])([#№])(\d{1,12})\b/gu;
 
-/** Every message id a text cites, de-duplicated, in first-appearance order. */
-export function findMessageRefs(text: string): number[] {
-  const ids: number[] = [];
-  for (const match of text.matchAll(MESSAGE_REF_PATTERN)) {
-    const id = Number(match[3]);
-    if (Number.isSafeInteger(id) && id > 0 && !ids.includes(id)) ids.push(id);
-  }
-  return ids;
-}
-
 /**
  * The `t.me` prefix a message link is built on for this chat, or null when
  * the chat has no linkable form.
