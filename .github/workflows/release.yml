@@ -67,6 +67,13 @@ jobs:
     needs: version
     if: needs.version.outputs.changed == 'true'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Reading the SDK from GitHub Packages. Stated rather than inherited:
+      # a repository whose default workflow permissions are restricted gets
+      # `contents: read` and nothing else, and the install would 401 on a
+      # package that is public.
+      packages: read
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
