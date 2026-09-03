@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-# The Telegram transport for assistant-hub. One process, one HTTP port, no
+# The Telegram transport for assistant-hub-swarm. One process, one HTTP port, no
 # database, no migrations, no volumes — it registers with a core at boot and
 # reconciles from the desired state the core answers with.
 #

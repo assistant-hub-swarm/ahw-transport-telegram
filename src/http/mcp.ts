@@ -121,7 +121,7 @@ export interface TgMcpDeps {
 
 /** Build this app's MCP server, with every tool bound to the request's turn. */
 export function createTgMcpServer(deps: TgMcpDeps): McpServer {
-  const server = new McpServer({ name: "assistant-hub-tg", version: "1.0.0" });
+  const server = new McpServer({ name: "ahw-transport-telegram", version: "1.0.0" });
 
   /**
    * The two delivery tools. Which one a turn may use is a fact about the turn,

@@ -1,6 +1,6 @@
 # ahw-transport-telegram
 
-The **Telegram transport** for [assistant-hub][core]: stateless pollers that
+The **Telegram transport** for [assistant-hub-swarm][core]: stateless pollers that
 register with a running core, forward every update as transport events, perform
 the sends the core asks for, and host Telegram's own actions as MCP tools.
 

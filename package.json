@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "The Telegram transport for assistant-hub: stateless pollers that register with a core, forward every update as transport events, perform the sends, and host Telegram's actions as MCP tools.",
+  "description": "The Telegram transport for assistant-hub-swarm: stateless pollers that register with a core, forward every update as transport events, perform the sends, and host Telegram's actions as MCP tools.",
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -19,7 +19,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@assistant-hub-swarm/transport-sdk": "^1.0.0",
+    "@assistant-hub-swarm/transport-sdk": "^2.0.0",
     "@grammyjs/runner": "^2.0.3",
     "@grammyjs/types": "^5.0.0",
     "@hono/node-server": "^1.14.0",
