@@ -1,6 +1,6 @@
 {
   "name": "ahw-transport-telegram",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "module",
   "description": "The Telegram transport for assistant-hub-swarm: stateless pollers that register with a core, forward every update as transport events, perform the sends, and host Telegram's actions as MCP tools.",
