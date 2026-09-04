@@ -1,6 +1,7 @@
 import {
   reactToMessage,
   toolRefusal,
+  tracedTool,
   turnOf,
   type TransportRuntime,
 } from "@assistant-hub-swarm/transport-sdk";
@@ -102,68 +103,90 @@ export function registerReactionTool(server: McpServer, runtime: TransportRuntim
     },
     async ({ message_id, emoji, big }, extra) => {
       const turn = turnOf(extra?._meta, runtime.descriptor.id);
-      if (!turn) {
-        return toolRefusal(
-          "This tool can only be used inside a turn on Telegram, and this call carries no turn " +
-            "binding. Nothing was changed.",
-        );
-      }
+      return tracedTool(
+        {
+          traces: runtime.traces,
+          descriptor: runtime.descriptor,
+          turn,
+          action: "set_message_reaction",
+          inputSummary: `#${message_id} ${emoji.trim() || "(cleared)"}`,
+        },
+        async (event) => {
+          if (!turn) {
+            return toolRefusal(
+              "This tool can only be used inside a turn on Telegram, and this call carries no turn " +
+                "binding. Nothing was changed.",
+            );
+          }
 
-      const requested = emoji.trim();
-      const reaction = requested ? toTelegramReactionEmoji(requested) : null;
-      if (requested && !reaction) {
-        return toolRefusal(
-          `Telegram has no "${requested}" reaction. Pick one of: ` +
-            `${TELEGRAM_REACTION_EMOJI.join(" ")}`,
-        );
-      }
+          const requested = emoji.trim();
+          const reaction = requested ? toTelegramReactionEmoji(requested) : null;
+          if (requested && !reaction) {
+            return toolRefusal(
+              `Telegram has no "${requested}" reaction. Pick one of: ` +
+                `${TELEGRAM_REACTION_EMOJI.join(" ")}`,
+            );
+          }
 
-      let outcome;
-      try {
-        outcome = await reactToMessage(
-          { ...runtime.send, core: runtime.core },
-          {
-            chatId: turn.chatId,
-            sourceMessageId: String(message_id),
-            emoji: reaction,
-            assistantId: turn.assistantId ?? null,
-            options: { big },
-          },
-        );
-      } catch (err) {
-        // Telegram refused for a reason only it knows (a chat-restricted
-        // emoji, a message too old, no running connection) — relayed verbatim
-        // so the model does not claim it reacted.
-        return toolRefusal(
-          `Telegram did not accept the reaction: ${err instanceof Error ? err.message : String(err)}. ` +
-            "Do not claim you reacted.",
-        );
-      }
+          let outcome;
+          try {
+            outcome = await reactToMessage(
+              { ...runtime.send, core: runtime.core },
+              {
+                chatId: turn.chatId,
+                sourceMessageId: String(message_id),
+                emoji: reaction,
+                assistantId: turn.assistantId ?? null,
+                options: { big },
+              },
+            );
+          } catch (err) {
+            // Telegram refused for a reason only it knows (a chat-restricted
+            // emoji, a message too old, no running connection) — relayed verbatim
+            // so the model does not claim it reacted.
+            return toolRefusal(
+              `Telegram did not accept the reaction: ${err instanceof Error ? err.message : String(err)}. ` +
+                "Do not claim you reacted.",
+            );
+          }
 
-      if (outcome.status === "not_found") {
-        return toolRefusal(
-          `No message #${message_id} in this chat. Do not guess ids — look the message up again ` +
-            "and use an id from the result, or answer without reacting.",
-        );
-      }
-      // Reacting to itself is the one target that is never right: a badge the
-      // bot put on its own message says nothing to anyone, and Telegram would
-      // happily allow it.
-      if (outcome.status === "own_message") {
-        return toolRefusal(
-          `Message #${message_id} is your own — do not react to what you said yourself. ` +
-            "React to someone else's message, or say what you mean in your answer.",
-        );
-      }
+          if (outcome.status === "not_found") {
+            return toolRefusal(
+              `No message #${message_id} in this chat. Do not guess ids — look the message up again ` +
+                "and use an id from the result, or answer without reacting.",
+            );
+          }
+          // Reacting to itself is the one target that is never right: a badge the
+          // bot put on its own message says nothing to anyone, and Telegram would
+          // happily allow it.
+          if (outcome.status === "own_message") {
+            return toolRefusal(
+              `Message #${message_id} is your own — do not react to what you said yourself. ` +
+                "React to someone else's message, or say what you mean in your answer.",
+            );
+          }
 
-      // Whether the bot will *remember* reacting: the mirror renders it on the
-      // target line (`[you reacted: ...]`); without that record the very next
-      // turn denied having set it (operator report, 2026-08-15). The reaction
-      // IS on the message either way — a failed record must not read as a
-      // Telegram refusal, only as the memory of it missing.
-      const note = outcome.recorded
-        ? ""
-        : " (Warning: the reaction could not be recorded in your history — later turns may not remember it.)";
+          // Whether the bot will *remember* reacting: the mirror renders it on the
+          // target line (`[you reacted: ...]`); without that record the very next
+          // turn denied having set it (operator report, 2026-08-15). The reaction
+          // IS on the message either way — a failed record must not read as a
+          // Telegram refusal, only as the memory of it missing.
+          const note = outcome.recorded
+            ? ""
+            : " (Warning: the reaction could not be recorded in your history — later turns may not remember it.)";
+          event({
+            message: reaction ? `reacted ${reaction}` : "reaction cleared",
+            type: "external_call",
+            level: outcome.recorded ? "success" : "warn",
+            data: {
+              sourceMessageId: String(message_id),
+              emoji: reaction,
+              big,
+              // False means the badge is on the message but the core's mirror does
+              // not know, so the next turn will not remember reacting.
+              recorded: outcome.recorded,
+        },
+      });
       const text =
         (reaction
           ? `Reacted ${reaction} to message #${message_id}. The chat sees it under that ` +
@@ -173,6 +196,8 @@ export function registerReactionTool(server: McpServer, runtime: TransportRuntim
         content: [{ type: "text" as const, text }],
         structuredContent: { ok: true, message_id, emoji: reaction },
       };
+        },
+      );
     },
   );
 }
